@@ -26,13 +26,7 @@ Paper: arXiv link coming soon.
     per-step latency and energy, PUE, grid CI)
 ```
 
-The processes talk over gRPC:
-
-| Process | Instances | Role |
-|---|---|---|
-| Scheduler | 1 per region | Receives requests from the load generator and routes each to a DC with the configured policy |
-| Datacenter | 1 per DC | Simulates its nodes and inference engines step by step and accounts energy and carbon |
-| Load generator | 1 or more shards | Replays the request trace as Poisson arrivals and records per-request TTFT, TPOT, and placement |
+The processes talk over gRPC.
 
 ## Default topology
 
