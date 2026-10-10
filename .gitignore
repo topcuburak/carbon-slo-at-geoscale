@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+
+# Generated gRPC stubs (rebuilt by scripts/sweep/sweep_all_policies.sh)
+proto/inference_pb2.py
+proto/inference_pb2_grpc.py
+
+# Simulation outputs
+results/
+*.log

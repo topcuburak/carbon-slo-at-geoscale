@@ -1,0 +1,325 @@
+syntax = "proto3";
+
+package inference;
+
+// ---------------------------------------------------------------------------
+// Datacenter Service — runs inside each virtual-datacenter namespace
+// ---------------------------------------------------------------------------
+service DatacenterService {
+  // Scheduler → DC: dispatch an inference request
+  rpc Dispatch(DispatchRequest) returns (DispatchResponse);
+  // Provisioner → DC: poll current load stats
+  rpc PollStats(PollStatsRequest) returns (PollStatsResponse);
+  // Energy collector → DC: finalize energy computation from time series
+  rpc FinalizeEnergy(FinalizeEnergyRequest) returns (FinalizeEnergyResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler Service — one per region in scheduler-system namespace
+// ---------------------------------------------------------------------------
+service SchedulerService {
+  // Client → Scheduler: submit an inference request
+  rpc SubmitRequest(InferenceRequest) returns (InferenceResponse);
+  // Client → Scheduler: the same submission over one long-lived stream.
+  //
+  // Semantically identical to SubmitRequest called once per message: each
+  // request is scheduled independently and its reply carries the req_id it
+  // answers. Replies are NOT in request order -- a request placed at a near
+  // datacentre finishes long before one forwarded across a region, and making
+  // the stream ordered would couple their latencies. Callers MUST match on
+  // req_id rather than on arrival position, and MUST therefore set it.
+  //
+  // This exists because the unary path spends most of a scheduler's CPU in the
+  // gRPC runtime rather than in scheduling: measured 176.8 us of server CPU per
+  // unary call against 90.7 us per streamed message, a 2.24x difference, with
+  // per-call HTTP/2 stream setup and teardown the bulk of the gap. The unary
+  // RPC above stays as the reference path and is what the tests exercise.
+  rpc SubmitStream(stream InferenceRequest) returns (stream InferenceResponse);
+  // Provisioner → Scheduler: push a new datacenter load snapshot
+  rpc PushSnapshot(Snapshot) returns (Ack);
+}
+
+// ---------------------------------------------------------------------------
+// Provisioner Service — single instance in provisioner-system namespace
+// ---------------------------------------------------------------------------
+service ProvisionerService {
+  // Observability: query provisioner status
+  rpc GetStatus(Empty) returns (ProvisionerStatus);
+  // Loadgen → Provisioner: get carbon emissions report from all DCs
+  rpc GetCarbonReport(Empty) returns (CarbonReport);
+}
+
+// ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
+
+// -- Datacenter --
+
+message DispatchRequest {
+  string req_id   = 1;
+  int32  in_tok   = 2;
+  int32  out_tok  = 3;
+  string reply_to = 4;  // scheduler id that should receive response
+  string dataset  = 5;  // source dataset (e.g. "MBPP") for per-dataset GPU lookup
+  // The trace's predicted output length, 0 if it has none. The site forecasts
+  // when its cache frees room from each request's output length, and reads
+  // this one when OSL_SOURCE=predicted.
+  int32  predicted_osl = 6;
+}
+
+message DispatchResponse {
+  string req_id      = 1;
+  string dc_id       = 2;
+  string gpu_id      = 3;
+  double service_ms  = 4;
+  double start_ms    = 5;
+  double finish_ms   = 6;
+  double ttft_ms     = 7;   // prefill queue wait + prefill compute
+  double avg_tpot_ms = 8;   // (service_ms - ttft_ms) / out_tok
+  double queue_ms    = 9;   // semaphore wait before GPU
+  // How many requests the engine ACTUALLY fused into this one's prefill pass.
+  // The scheduler's TTFT estimate assumes a new arrival shares its pass with
+  // everything currently admitted-but-unprefilled; this is what the engine
+  // really did, so the assumption can be scored instead of argued about.
+  int32  prefill_bs  = 10;
+}
+
+message PollStatsRequest {
+  string src   = 1;  // provisioner id
+  int32  epoch = 2;
+}
+
+message PollStatsResponse {
+  string dc_id            = 1;
+  int32  epoch            = 2;
+  int32  active_requests  = 3;
+  int32  num_gpus         = 5;
+  int32  num_nodes        = 6;
+  double carbon_intensity = 7;  // gCO2/kWh at this DC right now
+  double total_energy_j   = 8;  // cumulative energy (batch-size-weighted) in joules
+  double carbon_emissions_g = 9;  // cumulative CO2 emissions in grams (energy * PUE * CI / 3.6M)
+  int32  pending_requests = 10; // requests waiting in admission queue
+  int64  total_pending_isl = 11; // sum of ISLs of requests waiting for prefill
+  int32  prefilling_requests = 12; // requests currently being prefilled
+  int64  total_active_isl = 13; // sum of ISLs of active (decoding) requests — for TPOT estimation
+  int64  total_generated_tokens = 14; // sum of tokens already generated across active (decoding) requests
+  int32  decoding_requests = 15; // requests past prefill — the batch the next engine step runs
+  // total_energy_j split by cause. work = total - idle - host is the part a
+  // placement decision can move; idle is what the site drew with nothing in
+  // flight and host is the node's non-GPU draw, and whether either belongs in
+  // a policy comparison is a modelling choice the analysis makes, not the
+  // simulator. Both are 0 on the legacy three-state power path.
+  double idle_energy_j = 17;
+  double host_energy_j = 18;
+  // Sum of (osl - generated) over the DECODING set, i.e. how many more decode
+  // steps of work the current batch still owes. Summed over the same narrower
+  // population as total_active_isl and total_generated_tokens, so the three
+  // describe one batch consistently. This is what tells a scheduler when a
+  // sequence slot will free: an engine at its max_num_seqs cap admits nothing
+  // until a decoding request emits its last token, and without this field the
+  // admission wait is invisible and a queued request looks like it only pays
+  // for the prefill ahead of it.
+  int64  total_remaining_osl = 16;
+  // Prompt tokens ADMITTED but not yet prefilled -- the requests counted in
+  // prefilling_requests. Reported because nothing else covered them: at
+  // admission a request leaves total_pending_isl, and it joins
+  // total_active_isl only once its prefill lands, so in between its tokens
+  // appear in no sum at all. That window is exactly what a new arrival fuses
+  // its own prefill into, and prefill cost is a function of TOKENS, so a
+  // scheduler holding only prefilling_requests (a count) cannot price it.
+  // Measured 2026-09-02: the TTFT estimator, blind to this, certified 85.5%
+  // of placements as inside a 3000 ms budget when 25.8% were.
+  int64  total_prefill_isl   = 19;
+
+  // Fraction of engine wall time spent inside a prefill forward pass, with
+  // decode BLOCKED -- the engine already measures it as _prefill_busy_s.
+  // Averaged over the site's engines, cumulative since start.
+  //
+  // Reported because a scheduler cannot derive it: prefilling_requests is an
+  // instantaneous count and duty is a time fraction, and the conversion needs
+  // exactly the steady-state assumption that breaks where it matters.
+  double prefill_duty = 20;
+  // The KV gate is FCFS and BREAKS rather than skipping: one prompt that does
+  // not fit stalls the whole prefill queue behind it. When a site freezes with
+  // requests stuck in `prefilling`, these two say whether that gate is the
+  // reason -- kv_blocked_steps climbing, or kv_tokens high while nothing is
+  // decoding, which would mean the cache accounting leaked.
+  int64  kv_tokens          = 21;
+  int64  kv_capacity_tokens = 22;
+  int64  kv_blocked_steps   = 23;
+  // Cumulative, monotonic count of requests this site has accepted. Not a
+  // gauge like everything above it: a scheduler differences it across two
+  // snapshots to learn the site's TOTAL arrival rate, including the peers'
+  // traffic it cannot otherwise see. See DcStats.admitted_requests.
+  int64  admitted_requests   = 24;
+  // The KV gate's wait for a prompt arriving now, forecast by the site from
+  // its own requests because only the site knows its cache: a prompt of isl
+  // tokens waits kv_queue_ms + max(0, isl - kv_room_tokens) * kv_ms_per_token
+  // before its prefill starts. kv_queue_ms is the time until the prompts
+  // already waiting are in; kv_room_tokens the cache left then, which a
+  // scheduler reduces by the prompts it sent since this snapshot. All 0 when
+  // the cache is unknown. See GPU.kv_forecast.
+  double kv_queue_ms         = 25;
+  double kv_ms_per_token     = 26;
+  double kv_room_tokens      = 27;
+  // This site's power usage effectiveness. Carbon per unit of IT work is
+  // carbon_intensity x pue, so a scheduler ranking sites needs both.
+  double pue                 = 28;
+}
+
+// -- FinalizeEnergy --
+
+message FinalizeEnergyRequest {
+  double sim_duration_s = 1;  // total simulation duration in seconds
+}
+
+message FinalizeEnergyResponse {
+  string dc_id            = 1;
+  double total_energy_j   = 2;
+  double carbon_emissions_g = 3;
+}
+
+// -- Scheduler --
+
+message InferenceRequest {
+  int32  in_tok    = 1;
+  int32  out_tok   = 2;
+  string user_id   = 3;  // optional caller identifier
+  bool   forwarded = 4;  // true when scheduler-to-scheduler (prevents re-forwarding)
+  string dataset   = 5;  // source dataset for per-dataset GPU lookup (scheduler ignores this)
+  // What a length predictor said this request would generate, when the trace
+  // carries one. out_tok above is ground truth -- the datacentre generates
+  // exactly that many -- so a scheduler reading it is an ORACLE. This field
+  // lets the same run be replayed against a prediction instead; which one the
+  // scheduler uses is OSL_SOURCE. 0 when the trace has no prediction.
+  int32  predicted_osl = 6;
+  // Assigned by whoever created the request -- the load generator, at arrival,
+  // counting up from 1. Carried unchanged across scheduler-to-scheduler
+  // forwards and handed to the datacentre, so one id follows a request all the
+  // way through and the client's log joins the scheduler's DECISION_LOG. Empty
+  // when the caller did not set one, and the receiving scheduler then mints its
+  // own; those are prefixed with the scheduler id so the two cannot collide.
+  string req_id = 7;
+  // The datacentre the FORWARDING scheduler chose. Set only on a
+  // scheduler-to-scheduler hop, and the receiving scheduler dispatches there
+  // instead of deciding again.
+  //
+  // Without it the receiver re-picked among its own datacentres, so a global
+  // policy's choice only ever selected the GROUP -- carbon_aware could name
+  // the greenest site in the fleet and have the far end quietly substitute
+  // another. Nothing recorded the original intent, so the substitution was
+  // invisible in every result.
+  //
+  // The receiver still checks the named datacentre is one of its own. A
+  // request must not name a site in a third group: that is the shape of the
+  // leak where a second hop was taken and charged nothing.
+  string target_dc = 8;
+}
+
+message InferenceResponse {
+  string req_id           = 1;
+  string dc_id            = 2;
+  string status           = 3;  // "OK" or "ERROR"
+  double service_ms       = 4;
+  double latency_ms       = 5;  // end-to-end from scheduler's perspective
+  string error            = 6;
+  double carbon_intensity = 7;  // gCO2/kWh of the DC that served this request
+  double rtt_overhead_ms  = 8;  // network RTT added by cross-group forwarding
+  string sched_path       = 9;  // comma-separated scheduler chain
+  // Latency breakdown
+  double ttft_ms          = 10; // DC: prefill queue + prefill compute
+  double avg_tpot_ms      = 11; // DC: (service - ttft) / out_tok
+  double queue_ms         = 12; // DC: semaphore wait before GPU
+  double forwarding_ms    = 13; // scheduler: RTT for cross-region forwarding
+  double scheduling_ms    = 14; // scheduler: policy decision time (ILP solve)
+  int32  prefill_bs       = 15; // DC: requests fused into this prefill pass
+}
+
+message Snapshot {
+  int32                   epoch      = 1;
+  map<string, DcStats>    dc_view    = 2;
+  map<string, double>     rtt_matrix = 3;  // key: "groupA|groupB" (sorted), value: dynamic RTT ms
+}
+
+message DcStats {
+  int32  active_requests      = 1;
+  int32  num_gpus             = 2;
+  double carbon_intensity     = 3;  // gCO2/kWh
+  // field 4 removed (was estimated_latency_ms — no longer populated)
+  int32  pending_requests     = 5;  // requests waiting in admission queue
+  int64  total_pending_isl    = 6;  // sum of ISLs of requests waiting for prefill
+  int32  prefilling_requests  = 7;  // requests currently being prefilled
+  int64  total_active_isl     = 8;  // sum of ISLs of active (decoding) requests
+  int64  total_generated_tokens = 9; // sum of tokens generated-so-far across active requests
+  // Requests PAST their prefill, i.e. the ones that emit a token in the next
+  // engine step. active_requests counts these plus the ones still waiting on
+  // their prompt, while total_active_isl and total_generated_tokens above are
+  // summed over this narrower set -- so a latency estimate that pairs
+  // active_requests with either of them describes the batch one way and its
+  // cache another. Not derivable as active - prefilling: a request that has
+  // finished prefill but not yet joined the decode loop is in neither count.
+  int32  decoding_requests   = 10;
+  // See PollStatsResponse.total_remaining_osl. Summed over the decoding set.
+  int64  total_remaining_osl = 11;
+  // Prompt tokens ADMITTED but not yet prefilled -- the requests counted in
+  // prefilling_requests. Reported because nothing else covered them: at
+  // admission a request leaves total_pending_isl, and it joins
+  // total_active_isl only once its prefill lands, so in between its tokens
+  // appear in no sum at all. That window is exactly what a new arrival fuses
+  // its own prefill into, and prefill cost is a function of TOKENS, so a
+  // scheduler holding only prefilling_requests (a count) cannot price it.
+  // Measured 2026-09-02: the TTFT estimator, blind to this, certified 85.5%
+  // of placements as inside a 3000 ms budget when 25.8% were.
+  int64  total_prefill_isl   = 12;
+  // Share of engine wall time with decode blocked by a prefill pass, averaged
+  // over the site's engines. Carried from PollStatsResponse untouched; the
+  // scheduler needs it because tpot_ms prices the decode step alone and the
+  // request pays the stalls too.
+  double prefill_duty        = 13;
+  // Cumulative and monotonic, unlike every other field here. A scheduler can
+  // measure how much work it sends to a site, but not how much the other
+  // schedulers send: their dispatches are invisible until they land in a
+  // snapshot. Differencing this across two snapshots gives the site's whole
+  // arrival rate, so the share this scheduler is NOT responsible for becomes
+  // measurable rather than assumed. Measured 2026-09-08, the assumption it
+  // replaces (that all schedulers feed a site equally) left the projection
+  // 3.3x pessimistic about local sites and 5x optimistic about remote ones.
+  int64  admitted_requests   = 14;
+  // See PollStatsResponse.kv_queue_ms. Carried untouched.
+  double kv_queue_ms         = 15;
+  double kv_ms_per_token     = 16;
+  double kv_room_tokens      = 17;
+  // See PollStatsResponse.pue. 0 from a site predating the field.
+  double pue                 = 18;
+}
+
+// -- Provisioner --
+
+message ProvisionerStatus {
+  int32  current_epoch      = 1;
+  int32  num_datacenters    = 2;
+  int32  num_schedulers     = 3;
+  double poll_period_s      = 4;
+  double last_poll_duration = 5;
+}
+
+message DcCarbonStats {
+  string dc_id              = 1;
+  double carbon_intensity   = 2;  // gCO2/kWh
+  double total_energy_j     = 3;
+  double carbon_emissions_g = 4;  // computed by DC: energy * PUE * CI / 3.6M
+}
+
+message CarbonReport {
+  repeated DcCarbonStats dc_stats            = 1;
+  double                 total_energy_j      = 2;
+  double                 total_carbon_emissions_g = 3;
+}
+
+// -- Common --
+
+message Ack {
+  bool ok = 1;
+}
+
+message Empty {}

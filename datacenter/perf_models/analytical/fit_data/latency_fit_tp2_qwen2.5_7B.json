@@ -1,0 +1,45 @@
+{
+  "model": "qwen2.5_7B",
+  "tp": 2,
+  "source": "../results/energy_tp2_qwen/blocks.csv,../results/prefill_long_tp2_qwen/blocks.csv,../results/decode_midbs_tp2_qwen2.5/blocks.csv",
+  "ttft": {
+    "b0": 17.661558820477563,
+    "b1": 8.037851162150087e-05,
+    "b2": 0.03707317243480372,
+    "b3": -2.0052362548206304e-13,
+    "b4": 0.06960408795058695,
+    "b5": 4.6710721734044157e-07,
+    "form": "piecewise_linear_attn",
+    "k1": 320.0,
+    "k2": 1000000000.0,
+    "seq_len_max": 14336.0
+  },
+  "tpot": {
+    "c0": 16.851311695745547,
+    "c1": 0.04124509058890704,
+    "c2": 7.340636963336074e-06,
+    "c3": 4.284482440364773e-05,
+    "c4": 0.0,
+    "c5": 5.25149468424968e-08,
+    "form": "linear_curvature",
+    "bs_max": 768.0,
+    "kv_max": 676224.0,
+    "avg_kv_max": 8903.5
+  },
+  "holdout_mape": {
+    "ttft": 1.110669295154728,
+    "tpot": 3.659105145269216
+  },
+  "envelope": {
+    "prefill_tokens_per_step_max": 32768.0,
+    "bs_max": 768,
+    "kv_max": 676224.0,
+    "avg_kv_max": 8903.5
+  },
+  "tpot_narrow_bs64_mape": 1.5546957254805882,
+  "validation": {
+    "source": "../results/mlperf_tp2_qwen7b/blocks.csv",
+    "ttft": 1.6058526556184405,
+    "tpot": 3.279368790733079
+  }
+}

@@ -1,0 +1,67 @@
+# Scheduler Configuration
+# -----------------------
+# All values can be overridden by the corresponding environment variable.
+# Priority: Environment Variable > YAML value > Hardcoded default
+#
+# Available scheduling policies:
+#   round_robin, round_robin_local, least_loaded, least_loaded_local,
+#   weighted_least_loaded, carbon_aware, carbon_aware_local
+#
+# Available scheduler groups:
+#   europe_north, europe_south, us_east, us_south, us_west,
+#   middle_east, asia, south_america
+
+scheduler:
+  # Unique identifier for this scheduler instance.
+  # Env: SCHED_ID
+  sched_id: "sched-europe_north"
+
+  # Geographic group this scheduler belongs to.
+  # Determines which datacenters are "local" vs "remote".
+  # Env: SCHEDULER_GROUP
+  scheduler_group: "europe_north"
+
+  routing:
+    # Scheduling policy name (must match a registered @register_policy name).
+    # Env: ROUTING_POLICY
+    policy: "carbon_aware"
+
+    # Latency vs carbon trade-off weight for carbon-aware policies.
+    # 0.0 = minimize carbon only, 1.0 = minimize latency only.
+    # Ignored by non-carbon-aware policies.
+    # Env: ROUTING_ALPHA
+    alpha: 0.5
+
+    # Whether to simulate network round-trip time for cross-group forwarding.
+    # When true, the scheduler sleeps for the estimated RTT before/after
+    # forwarding a request to a remote scheduler group.
+    # Env: SIMULATE_RTT
+    simulate_rtt: true
+
+  server:
+    # gRPC port to listen on.
+    # Env: GRPC_PORT
+    grpc_port: 50052
+
+    # Maximum number of gRPC worker threads.
+    # Env: GRPC_MAX_WORKERS
+    grpc_max_workers: 5000
+
+  logging:
+    # Verbosity level:
+    #   0 = WARNING only (quiet mode)
+    #   1 = INFO-level logging (default)
+    #   2 = INFO + per-request CSV trace file
+    # Env: VERBOSITY
+    verbosity: 1
+
+    # Optional tag prefix for per-request CSV filenames (used when verbosity >= 2).
+    # Env: LOG_TAG
+    log_tag: ""
+
+  discovery:
+    # Path to a JSON file mapping service IDs to "host:port" endpoints.
+    # When set, static file-based discovery is used instead of K8s service discovery.
+    # Set to null to use Kubernetes service discovery.
+    # Env: STATIC_ENDPOINTS_FILE
+    static_endpoints_file: null

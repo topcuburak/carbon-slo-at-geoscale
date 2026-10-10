@@ -1,0 +1,50 @@
+{
+  "seed": 42,
+  "n_schedulers": 4,
+  "n_dcs_total": 16,
+  "n_nodes_per_dc": 4,
+  "topology": {
+    "europe_north": [
+      "Netherlands",
+      "Belgium",
+      "Lithuania",
+      "Latvia"
+    ],
+    "us_east": [
+      "US_MISO",
+      "US_DukeProgressE",
+      "US_PJM",
+      "US_DukeCarolinas"
+    ],
+    "asia": [
+      "JP_Chubu",
+      "AU_VIC",
+      "JP_Chugoku",
+      "JP_Tokyo"
+    ],
+    "south_america": [
+      "BR_South",
+      "BR_North",
+      "BR_Central",
+      "Peru"
+    ]
+  },
+  "all_dcs": [
+    "AU_VIC",
+    "BR_Central",
+    "BR_North",
+    "BR_South",
+    "Belgium",
+    "JP_Chubu",
+    "JP_Chugoku",
+    "JP_Tokyo",
+    "Latvia",
+    "Lithuania",
+    "Netherlands",
+    "Peru",
+    "US_DukeCarolinas",
+    "US_DukeProgressE",
+    "US_MISO",
+    "US_PJM"
+  ]
+}

@@ -1,0 +1,5 @@
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+kubernetes==31.0.0
+PyYAML>=6.0

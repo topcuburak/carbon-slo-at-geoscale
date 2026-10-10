@@ -1,0 +1,42 @@
+syntax = "proto3";
+package bench;
+
+// Copies of the real InferenceRequest / InferenceResponse field shapes, so the
+// serialisation cost this measures is the cost the scheduler actually pays.
+// Kept separate from proto/inference.proto because this adds a streaming RPC
+// that the system does not have -- the point of the benchmark is to find out
+// whether it should.
+
+message Req {
+  int32  in_tok        = 1;
+  int32  out_tok       = 2;
+  string user_id       = 3;
+  bool   forwarded     = 4;
+  string dataset       = 5;
+  int32  predicted_osl = 6;
+  string req_id        = 7;
+  string target_dc     = 8;
+}
+
+message Resp {
+  string req_id           = 1;
+  string dc_id            = 2;
+  string status           = 3;
+  double service_ms       = 4;
+  double latency_ms       = 5;
+  string error            = 6;
+  double carbon_intensity = 7;
+  double rtt_overhead_ms  = 8;
+  string sched_path       = 9;
+  double ttft_ms          = 10;
+  double avg_tpot_ms      = 11;
+  double queue_ms         = 12;
+  double forwarding_ms    = 13;
+  double scheduling_ms    = 14;
+  int32  prefill_bs       = 15;
+}
+
+service Bench {
+  rpc Unary(Req) returns (Resp);
+  rpc Stream(stream Req) returns (stream Resp);
+}

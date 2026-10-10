@@ -1,0 +1,45 @@
+{
+  "model": "llama3_8B",
+  "tp": 1,
+  "source": "../results/energy_tp1_wide/blocks.csv,../results/energy_tp1_rep2/blocks.csv,../results/prefill_long_tp1/blocks.csv",
+  "ttft": {
+    "b0": 14.625316074608383,
+    "b1": 0.021500151688564784,
+    "b2": 0.044955955723694846,
+    "b3": -0.0036523744162194525,
+    "b4": 0.03673059463417672,
+    "b5": 1.2112012200138356e-06,
+    "form": "piecewise_linear_attn",
+    "k1": 192.0,
+    "k2": 1024.0,
+    "seq_len_max": 14336.0
+  },
+  "tpot": {
+    "c0": 14.591246572443556,
+    "c1": 0.06104374451634029,
+    "c2": 0.00010092278446353139,
+    "c3": 7.146239644561321e-05,
+    "c4": 0.0,
+    "c5": 1.1586411260977592e-08,
+    "form": "linear_curvature",
+    "bs_max": 512.0,
+    "kv_max": 102848.0,
+    "avg_kv_max": 4787.0
+  },
+  "holdout_mape": {
+    "ttft": 0.7530512366725599,
+    "tpot": 1.6771813281288623
+  },
+  "envelope": {
+    "prefill_tokens_per_step_max": 32768.0,
+    "bs_max": 512,
+    "kv_max": 102848.0,
+    "avg_kv_max": 4787.0
+  },
+  "tpot_narrow_bs64_mape": 1.801537241781128,
+  "validation": {
+    "source": "../results/mlperf_tp1_llama8b/blocks.csv",
+    "ttft": 1.0480201806630622,
+    "tpot": 2.283784726613649
+  }
+}

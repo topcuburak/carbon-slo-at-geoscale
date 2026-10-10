@@ -1,0 +1,34 @@
+{
+  "_comment": "Experiment 3b: 4 schedulers x 2 sites, run with NUM_NODES=8 so capacity matches v9 (64 nodes). From each v9 group, the pair whose mean CI (2024-07-15 12:00) is closest to the group's 4-site mean.",
+  "derived_from": "scripts/sweep/topologies/v9_real_pue.json",
+  "n_schedulers": 4,
+  "n_dcs_total": 8,
+  "topology": {
+    "europe_north": [
+      "Netherlands",
+      "Belgium"
+    ],
+    "us_east": [
+      "US_MISO",
+      "US_DukeProgressE"
+    ],
+    "asia": [
+      "JP_Chubu",
+      "JP_Chugoku"
+    ],
+    "south_america": [
+      "BR_South",
+      "Chile"
+    ]
+  },
+  "all_dcs": [
+    "BR_South",
+    "Belgium",
+    "Chile",
+    "JP_Chubu",
+    "JP_Chugoku",
+    "Netherlands",
+    "US_DukeProgressE",
+    "US_MISO"
+  ]
+}

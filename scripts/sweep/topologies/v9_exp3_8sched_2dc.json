@@ -1,0 +1,58 @@
+{
+  "_comment": "Experiment 3a: 8 schedulers x 2 sites = 16 sites, NUM_NODES=4 (capacity as v9). The four v9 groups keep the 3b pairs; the four new groups take the pairs whose sorted CI profile best matches the eight v9 sites left out (brute force over all pair combinations, 2024-07-15 12:00): new mean 242 vs 233 g/kWh.",
+  "derived_from": "scripts/sweep/topologies/v9_real_pue.json",
+  "n_schedulers": 8,
+  "n_dcs_total": 16,
+  "topology": {
+    "europe_north": [
+      "Netherlands",
+      "Belgium"
+    ],
+    "us_east": [
+      "US_MISO",
+      "US_DukeProgressE"
+    ],
+    "asia": [
+      "JP_Chubu",
+      "JP_Chugoku"
+    ],
+    "south_america": [
+      "BR_South",
+      "Chile"
+    ],
+    "europe_south": [
+      "Germany",
+      "Portugal"
+    ],
+    "us_south": [
+      "US_Tallahassee",
+      "US_SPP"
+    ],
+    "us_west": [
+      "US_BPA",
+      "US_ElPaso"
+    ],
+    "middle_east": [
+      "Israel",
+      "Greece"
+    ]
+  },
+  "all_dcs": [
+    "BR_South",
+    "Belgium",
+    "Chile",
+    "Germany",
+    "Greece",
+    "Israel",
+    "JP_Chubu",
+    "JP_Chugoku",
+    "Netherlands",
+    "Portugal",
+    "US_BPA",
+    "US_DukeProgressE",
+    "US_ElPaso",
+    "US_MISO",
+    "US_SPP",
+    "US_Tallahassee"
+  ]
+}

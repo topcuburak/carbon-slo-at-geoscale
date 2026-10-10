@@ -1,0 +1,45 @@
+{
+  "model": "llama3_8B",
+  "tp": 2,
+  "source": "../results/energy_tp2/blocks.csv,../results/prefill_long_tp2/blocks.csv,../results/decode_lowbs_tp2/blocks.csv,../results/decode_midbs_tp2/blocks.csv",
+  "ttft": {
+    "b0": 19.17289789585375,
+    "b1": 0.003928699873683297,
+    "b2": 0.04176730759332398,
+    "b3": -0.005179528819266435,
+    "b4": 0.026916009533387866,
+    "b5": 6.278421514028729e-07,
+    "form": "piecewise_linear_attn",
+    "k1": 384.0,
+    "k2": 1024.0,
+    "seq_len_max": 14336.0
+  },
+  "tpot": {
+    "c0": 18.59788558022099,
+    "c1": 0.03673513231684908,
+    "c2": 1.5673422922573438e-05,
+    "c3": 4.3481855134138426e-05,
+    "c4": -9.636134698295709e-05,
+    "c5": 1.2489168536161666e-07,
+    "form": "linear_curvature",
+    "bs_max": 768.0,
+    "kv_max": 331200.0,
+    "avg_kv_max": 12995.0
+  },
+  "holdout_mape": {
+    "ttft": 0.7304219518772207,
+    "tpot": 2.8266308978232293
+  },
+  "envelope": {
+    "prefill_tokens_per_step_max": 32768.0,
+    "bs_max": 768,
+    "kv_max": 331200.0,
+    "avg_kv_max": 12995.0
+  },
+  "tpot_narrow_bs64_mape": 2.316316447304041,
+  "validation": {
+    "source": "../results/mlperf_tp2_llama8b/blocks.csv",
+    "ttft": 1.179966473726958,
+    "tpot": 3.204081493860786
+  }
+}

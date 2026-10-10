@@ -1,0 +1,68 @@
+{
+  "_comment": "Experiment 3a, redone: the SAME 16 v9 DCs and 4 regions as v9_real_pue.json, with two schedulers per region. Sub-group a keeps the 3b pair, b the region's other two DCs. group_parents prices each sub-group at its region's RTT, so the two halves of a region are the region's own round trip apart (common/network.py _apply_subgroups). Only the scheduler count changes.",
+  "derived_from": "scripts/sweep/topologies/v9_real_pue.json",
+  "n_schedulers": 8,
+  "n_dcs_total": 16,
+  "topology": {
+    "europe_north_a": [
+      "Netherlands",
+      "Belgium"
+    ],
+    "europe_north_b": [
+      "DK_East",
+      "DK_West"
+    ],
+    "us_east_a": [
+      "US_MISO",
+      "US_DukeProgressE"
+    ],
+    "us_east_b": [
+      "US_PJM",
+      "US_DukeCarolinas"
+    ],
+    "asia_a": [
+      "JP_Chubu",
+      "JP_Chugoku"
+    ],
+    "asia_b": [
+      "AU_VIC",
+      "JP_Tokyo"
+    ],
+    "south_america_a": [
+      "BR_South",
+      "Chile"
+    ],
+    "south_america_b": [
+      "BR_North",
+      "BR_Central"
+    ]
+  },
+  "group_parents": {
+    "europe_north_a": "europe_north",
+    "europe_north_b": "europe_north",
+    "us_east_a": "us_east",
+    "us_east_b": "us_east",
+    "asia_a": "asia",
+    "asia_b": "asia",
+    "south_america_a": "south_america",
+    "south_america_b": "south_america"
+  },
+  "all_dcs": [
+    "AU_VIC",
+    "BR_Central",
+    "BR_North",
+    "BR_South",
+    "Belgium",
+    "Chile",
+    "DK_East",
+    "DK_West",
+    "JP_Chubu",
+    "JP_Chugoku",
+    "JP_Tokyo",
+    "Netherlands",
+    "US_DukeCarolinas",
+    "US_DukeProgressE",
+    "US_MISO",
+    "US_PJM"
+  ]
+}

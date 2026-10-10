@@ -1,0 +1,56 @@
+# Datacentre fleet specification.
+#
+# READ BY scripts/start_datacenters.sh, which turns these into flags for
+# datacenter/launch.py. Anything passed on the command line comes after and wins.
+#
+#   scripts/start_datacenters.sh
+#   scripts/start_datacenters.sh --model-name qwen2.5_7B
+#   scripts/start_datacenters.sh --config runs/my_fleet.yaml --groups europe_north
+#
+# There is no "how many datacentres" key. The list is the topology --
+# common/network.py:SCHEDULER_GROUPS, 104 sites across 8 groups -- because a
+# scheduler resolves a site's owner through it. A site in the topology with no
+# process is not a smaller fleet; it is a fleet where every request routed there
+# fails. `groups` exists only to run a deliberately partial one, and the
+# launcher says so loudly when it is used.
+#
+# Two things are deliberately NOT here, because they are per-site and belong in
+# their own tables rather than in a fleet-wide default:
+#   carbon intensity  common/carbon.py, sampled at sim_datetime
+#   PUE               common/pue_by_dc.json via common/pue.py
+
+fleet:
+  groups: all                 # 'all', or a comma-separated subset
+  base_port: 51000            # site ports are assigned in topology order
+
+  # Hardware per site. Engines per node = num_gpus_per_node // tp_size, so
+  # this is 2 nodes x 4 engines = 8 engines per site.
+  num_nodes: 2
+  num_gpus_per_node: 8        # PHYSICAL cards, not engines
+  tp_size: 2
+  max_batch_size: 32          # max_num_seqs per engine; 0 for unlimited
+
+  # The engine's context window. It also sets the prefill token budget
+  # (max_num_batched_tokens = max(max_model_len, 2048) with chunked prefill
+  # off), so it decides how many queued prompts fuse into one forward pass.
+  max_model_len: 32768
+
+  # Analytical mode needs a fitted artifact for this exact (model, tp_size) and
+  # there is no fallback table -- a missing one raises at start-up rather than
+  # returning a plausible wrong number. Fitted: llama3_8B and qwen2.5_7B at
+  # TP=1 and TP=2, mixtral_8x7b at TP=4.
+  model_name: llama3_8B
+  latency_mode: analytical
+
+  # When to sample carbon intensity. It is held constant for the length of a
+  # run: a run is ~2 minutes of simulated time and grid intensity does not move
+  # meaningfully inside that. Study temporal variation by running the same
+  # experiment at a different timestamp.
+  sim_datetime: "2024-07-15T12:00:00"
+  default_ci: 400.0           # only for sites the archive has no data for
+
+  endpoints_file: results/logs/endpoints.json
+  log_dir: results/logs/datacenters
+  log_tag: ""
+  bs_profile_dir: ""          # set to collect per-site batch-size occupancy
+  verbosity: 0                # 1 logs every dispatch, 2 also writes a CSV

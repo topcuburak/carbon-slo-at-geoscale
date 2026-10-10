@@ -1,0 +1,45 @@
+{
+  "model": "mixtral_8x7b",
+  "tp": 4,
+  "source": "../results/short_tp4_mixtral/blocks.csv,../results/prefill_long_tp4_mixtral/blocks.csv,../results/decode_wide_tp4_mixtral/blocks.csv,../results/decode_highbs_tp4_mixtral/blocks.csv,../results/prefill_shortbs_tp4_mixtral/blocks.csv",
+  "ttft": {
+    "b0": 27.9365806756896,
+    "b1": 0.008067198217706167,
+    "b2": 0.03084969605997175,
+    "b3": -1.32088784354778e-13,
+    "b4": 0.029219945043169993,
+    "b5": 3.2779314128837667e-07,
+    "form": "piecewise_linear_attn",
+    "k1": 384.0,
+    "k2": 1000000000.0,
+    "seq_len_max": 14336.0
+  },
+  "tpot": {
+    "c0": 26.34498425462943,
+    "c1": 0.047394700086265874,
+    "c2": 8.623541847583866e-06,
+    "c3": 2.284818907561699e-05,
+    "c4": 0.0,
+    "c5": 1.1034509685842186e-07,
+    "form": "linear_curvature",
+    "bs_max": 768.0,
+    "kv_max": 278784.0,
+    "avg_kv_max": 10692.0
+  },
+  "holdout_mape": {
+    "ttft": 0.9905155055704196,
+    "tpot": 2.1245923135279994
+  },
+  "envelope": {
+    "prefill_tokens_per_step_max": 32768.0,
+    "bs_max": 768,
+    "kv_max": 278784.0,
+    "avg_kv_max": 10692.0
+  },
+  "tpot_narrow_bs64_mape": 1.3463383448838098,
+  "validation": {
+    "source": "../results/decode_midbs_tp4_mixtral/blocks.csv",
+    "ttft": 0.12004912080674104,
+    "tpot": 1.9215183023112987
+  }
+}

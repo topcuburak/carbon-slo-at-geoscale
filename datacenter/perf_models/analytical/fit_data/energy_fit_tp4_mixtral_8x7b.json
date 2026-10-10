@@ -1,0 +1,80 @@
+{
+  "model": "mixtral_8x7b",
+  "tp": 4,
+  "units": "joules_per_engine_per_step",
+  "form": "E_step = e0 + e_d*n_decode_reqs + e_kv*total_KV + e_p*n_prefill_tokens (+ e_pr*n_prefill_reqs)",
+  "variant": "pint_lo",
+  "variant_forced": false,
+  "coefficients": {
+    "e0": 22.777172387560167,
+    "e0_p": 0.9682511146987266,
+    "e_d": 0.10394173054221233,
+    "e_kv": 4.513483598056297e-05,
+    "e_att": 4.6367782429827405e-07,
+    "e_p": 0.061806075860844724,
+    "e0_plo": 3.9217284566303836
+  },
+  "train_mape": 4.622566562047858,
+  "holdout_mape": 5.632125611291646,
+  "n_rows": 588,
+  "envelope": {
+    "bs_max": 768,
+    "kv_max": 278784.0,
+    "prefill_tokens_per_step_max": 32768,
+    "prefill_plateau_min_tokens": 512,
+    "prefill_plateau_w_measured": 1541.138871964781
+  },
+  "idle_levels": {
+    "start": {
+      "median_w": 303.11629750688036,
+      "n": 4,
+      "min_w": 300.25841958100256,
+      "max_w": 303.51897793850134
+    },
+    "middle": {
+      "median_w": 333.90693847973046,
+      "n": 4,
+      "min_w": 324.9973295372788,
+      "max_w": 342.74196717277994
+    },
+    "end": {
+      "median_w": 334.0656473703176,
+      "n": 4,
+      "min_w": 329.7977502633416,
+      "max_w": 336.682903354111
+    },
+    "_engine_idle_w": 303.11629750688036
+  },
+  "regime_mape": {
+    "decode": {
+      "n": 369,
+      "mape": 6.748359511813394,
+      "bias": 0.8395375291759635,
+      "p10": -10.597823517463478,
+      "p90": 12.501381252153694
+    },
+    "prefill": {
+      "n": 219,
+      "mape": 1.5847143672866,
+      "bias": 0.19611992771769754,
+      "p10": -2.3400368077862588,
+      "p90": 2.5052364313549735
+    }
+  },
+  "timing": {
+    "a0_ms": 17.19001017260964,
+    "a1_ms_per_token": 0.040700201218953985,
+    "c0_decode_floor_ms": 25.371192126909545,
+    "engine_tdp_w": 1600.0,
+    "e_p_over_a1_w": 1518.5692947400414,
+    "e0_over_c0_w": 897.757278161239,
+    "note": "a0/a1 fit on this campaign's own prefill blocks, c0 on its decode blocks. e_p/a1 is the prefill marginal power and should sit just under engine_tdp_w; if it exceeds it, suspect the timing fit before the energy model."
+  },
+  "provenance": {
+    "source": "../../results/testbed/short_tp4_mixtral/blocks.csv,../../results/testbed/prefill_long_tp4_mixtral/blocks.csv,../../results/testbed/decode_wide_tp4_mixtral/blocks.csv,../../results/testbed/decode_midbs_tp4_mixtral/blocks.csv,../../results/testbed/decode_highbs_tp4_mixtral/blocks.csv",
+    "engine": "vLLM 0.6.3, chunked prefill off, enforce_eager, fp16, seed 42",
+    "instrument": "NVML power.draw at 20 Hz, energy counter cross-check",
+    "note": "Coefficients are for mixtral_8x7b at TP=4 and cover a whole 4-GPU engine. Do NOT rescale them to another TP. That was tested: at TP=2 the per-GPU ratios against TP=1 are 0.736 (e0), 0.713 (e_d), 0.366 (e_kv) and 0.628 (e_p) -- none of them 1.0 -- so dividing by the device count reproduces none of them. Across ARCHITECTURES the form and its coefficients do transfer: the prefill plateau is the card's TDP, e_p is plateau x a1, and e_kv follows KV bytes per token to about 20%."
+  },
+  "dropped_contaminated_rows": 0
+}

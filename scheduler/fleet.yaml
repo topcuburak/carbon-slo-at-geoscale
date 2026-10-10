@@ -1,0 +1,53 @@
+# Scheduler fleet specification.
+#
+# READ BY scripts/start_schedulers.sh, which turns these into flags for
+# scheduler/launch.py. Anything passed on the command line comes after and wins.
+#
+#   scripts/start_schedulers.sh
+#   scripts/start_schedulers.sh --policy carbon_aware --alpha 0.5
+#   scripts/start_schedulers.sh --config runs/my_fleet.yaml
+#
+# There is no "how many schedulers" key, and that is deliberate. Forwarding
+# resolves a datacentre's owner through common.network.REGION_TO_GROUP and
+# addresses it as `sched-<group>`, so the count is a property of the topology --
+# 104 datacentres across 8 groups -- not a choice. `groups` exists only to run a
+# deliberately partial fleet, and the launcher says so loudly when it is used.
+
+fleet:
+  groups: all                 # 'all', or a comma-separated subset
+  base_port: 50200            # sched-<group> ports are assigned in topology order
+
+  # Routing
+  policy: round_robin         # see scheduler/policies/ for the registered names
+  alpha: 0.0                  # weight parameter, policy-specific
+  ilp_max_iterations: 3       # rounds for iterative_ilp_carbon_sla only; it
+                              # re-solves until the assignment stops changing
+                              # or this many rounds have run
+  osl_source: oracle          # oracle | predicted | ref -- oracle reads the
+                              # trace's true out_tok and IS clairvoyant
+  ref_osl: 500
+
+  # Every policy that estimates latency loads the analytical model from these,
+  # and refuses to start without them. round_robin and least_loaded do not.
+  model_name: llama3_8B
+  tp_size: 2
+  # The engines' PER-ENGINE max_num_seqs, matching datacenter/fleet.yaml's
+  # max_batch_size. The ILP projects its placements against engines x this;
+  # at 0 every placement counts as admitted and the queue it should have
+  # predicted never appears. The sweep passes 32, so this path used to
+  # disagree with it.
+  max_num_seqs: 32
+
+  # Batching (used by the ILP policies)
+  batch_window_ms: 250
+
+  # SLO budgets, 0 to leave unset
+  ttft_budget_ms: 0
+  tpot_budget_ms: 0
+
+  simulate_rtt: "true"
+  verbosity: 1
+
+  endpoints_file: results/logs/endpoints.json
+  log_dir: results/logs/schedulers
+  log_tag: ""

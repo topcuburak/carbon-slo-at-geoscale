@@ -1,0 +1,39 @@
+# Load generator run configuration.
+#
+# READ BY loadgen/start-loadgen.sh, which turns these into CLI flags. Anything
+# you pass on the command line comes AFTER them and therefore wins:
+#
+#   loadgen/start-loadgen.sh                          # this file as written
+#   loadgen/start-loadgen.sh --arrival-rate 50        # this file, rate overridden
+#   loadgen/start-loadgen.sh --config other.yaml      # a different file
+#
+# Every key below maps to a real flag on loadgen/client.py. The previous version
+# of this file was read by nothing and had drifted: it advertised a token_mode
+# that no longer exists and four values that did not match what actually ran.
+# If you add a key here, add the flag too, or the script will reject it.
+
+loadgen:
+  # Traffic
+  duration: 120                 # seconds
+  arrival_rate: 40              # req/s. Poisson to ~200; past that the loop
+                                # overhead distorts the distribution.
+  arrival_distribution: poisson # poisson | uniform
+  seed: 42
+
+  # Uniform mode only, ignored under poisson
+  min_interval_ms: 30
+  max_interval_ms: 120
+
+  # Workload. One of the nine scenario traces; see loadgen/scenarios/README.md.
+  trace_csv: loadgen/scenarios/mixed_llama3_8B.csv
+
+
+  # Worker pool width. Omit (or 0) to derive it from rate x duration, which is
+  # every request the run can offer and therefore a pool that cannot bind.
+  # Set a number only to override that.
+  # concurrent: 30000
+
+  # Output
+  output: results/loadgen_results.csv
+  verbosity: 1                  # 0 quiet, 1 summary, 2 also per-request CSV
+  tag: ""

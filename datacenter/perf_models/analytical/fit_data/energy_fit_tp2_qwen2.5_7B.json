@@ -1,0 +1,80 @@
+{
+  "model": "qwen2.5_7B",
+  "tp": 2,
+  "units": "joules_per_engine_per_step",
+  "form": "E_step = e0 + e_d*n_decode_reqs + e_kv*total_KV + e_p*n_prefill_tokens (+ e_pr*n_prefill_reqs)",
+  "variant": "pint_lo",
+  "variant_forced": false,
+  "coefficients": {
+    "e0": 5.829460765107872,
+    "e0_p": -1.6197552148678698,
+    "e_d": 0.04485192909733227,
+    "e_kv": 1.3650004830837805e-05,
+    "e_att": 3.577757887939772e-07,
+    "e_p": 0.029408216204721626,
+    "e0_plo": 1.0814010595743806
+  },
+  "train_mape": 3.0737015522510376,
+  "holdout_mape": 3.3884341172691554,
+  "n_rows": 975,
+  "envelope": {
+    "bs_max": 768,
+    "kv_max": 676224.0,
+    "prefill_tokens_per_step_max": 32768,
+    "prefill_plateau_min_tokens": 512,
+    "prefill_plateau_w_measured": 770.1971294407062
+  },
+  "idle_levels": {
+    "start": {
+      "median_w": 147.1489361542658,
+      "n": 1,
+      "min_w": 147.1489361542658,
+      "max_w": 147.1489361542658
+    },
+    "middle": {
+      "median_w": 161.46504748060468,
+      "n": 1,
+      "min_w": 161.46504748060468,
+      "max_w": 161.46504748060468
+    },
+    "end": {
+      "median_w": 162.626783760469,
+      "n": 1,
+      "min_w": 162.626783760469,
+      "max_w": 162.626783760469
+    },
+    "_engine_idle_w": 147.1489361542658
+  },
+  "regime_mape": {
+    "decode": {
+      "n": 753,
+      "mape": 3.504557685014681,
+      "bias": -0.40624266648664337,
+      "p10": -5.7609886048231145,
+      "p90": 4.950830376067666
+    },
+    "prefill": {
+      "n": 222,
+      "mape": 1.8887384090416186,
+      "bias": -0.26065704384831545,
+      "p10": -3.1016082276465604,
+      "p90": 2.64731284893521
+    }
+  },
+  "timing": {
+    "a0_ms": 5.6050813569354725,
+    "a1_ms_per_token": 0.03979771927613469,
+    "c0_decode_floor_ms": 16.46805499665073,
+    "engine_tdp_w": 800.0,
+    "e_p_over_a1_w": 738.9422494458549,
+    "e0_over_c0_w": 353.9859908345865,
+    "note": "a0/a1 fit on this campaign's own prefill blocks, c0 on its decode blocks. e_p/a1 is the prefill marginal power and should sit just under engine_tdp_w; if it exceeds it, suspect the timing fit before the energy model."
+  },
+  "provenance": {
+    "source": "../results/energy_tp2_qwen/blocks.csv,../results/prefill_long_tp2_qwen/blocks.csv,../results/decode_midbs_tp2_qwen2.5/blocks.csv",
+    "engine": "vLLM 0.6.3, chunked prefill off, enforce_eager, fp16, seed 42",
+    "instrument": "NVML power.draw at 20 Hz, energy counter cross-check",
+    "note": "Coefficients are for qwen2.5_7B at TP=2 and cover a whole 2-GPU engine. Do NOT rescale them to another TP. That was tested: at TP=2 the per-GPU ratios against TP=1 are 0.736 (e0), 0.713 (e_d), 0.366 (e_kv) and 0.628 (e_p) -- none of them 1.0 -- so dividing by the device count reproduces none of them. Across ARCHITECTURES the form and its coefficients do transfer: the prefill plateau is the card's TDP, e_p is plateau x a1, and e_kv follows KV bytes per token to about 20%."
+  },
+  "dropped_contaminated_rows": 0
+}
